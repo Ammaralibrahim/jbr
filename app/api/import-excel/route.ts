@@ -8,7 +8,6 @@ import { connectToDatabase } from '@/lib/mongodb';
 import * as XLSX from 'xlsx';
 import mongoose from 'mongoose';
 
-export const dynamic = 'force-dynamic';
 
 // ==================== SABİTLER ====================
 const START_KEYWORDS = ['بداية', 'بدايه', 'başlangıç', 'start', 'begin', 'initial'];

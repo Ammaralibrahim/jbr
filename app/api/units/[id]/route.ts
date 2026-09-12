@@ -7,7 +7,6 @@ import { Unit, DailyLog } from '@/models';
 import { connectToDatabase } from '@/lib/mongodb';
 import mongoose from 'mongoose';
 
-export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
