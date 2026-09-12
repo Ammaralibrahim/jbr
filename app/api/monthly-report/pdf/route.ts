@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -43,7 +45,6 @@ export async function GET(request: NextRequest) {
         'Content-Length': pdfBuffer.length.toString(),
       },
     });
-
   } catch (error) {
     console.error('PDF generation error:', error);
     return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });

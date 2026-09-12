@@ -3,35 +3,34 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request });
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const pathname = request.nextUrl.pathname;
 
-  // API rotalarını atla
-  if (pathname.startsWith('/api')) {
+  // API ve statik dosyaları atla
+  if (
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname === '/favicon.ico'
+  ) {
     return NextResponse.next();
   }
 
-  // Statik dosyaları atla
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon.ico')) {
-    return NextResponse.next();
+  const isAuthPage = pathname === '/signin';
+  const isProtected = ['/dashboard', '/daily-logs', '/monthly-report', '/units', '/users'].some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  );
+
+  // Giriş yapmışsa ve signin'de → dashboard'a yönlendir
+  if (token && isAuthPage) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Signin sayfası kontrolü
-  if (pathname === '/signin') {
-    if (token) {
-      // Kullanıcı zaten giriş yapmış, dashboard'a yönlendir
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    return NextResponse.next();
-  }
-
-  // Korumalı sayfalar
-  const protectedPaths = ['/dashboard', '/daily-logs', '/monthly-report', '/units', '/users'];
-  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
-
-  if (isProtectedPath && !token) {
-    // Giriş yapılmamış, signin sayfasına yönlendir
+  // Giriş yapmamışsa ve korumalı sayfada → signin'e yönlendir
+  if (!token && isProtected) {
     const signinUrl = new URL('/signin', request.url);
+    // Callback URL'yi her zaman /dashboard yap (güvenlik için)
+    signinUrl.searchParams.set('callbackUrl', '/dashboard');
     return NextResponse.redirect(signinUrl);
   }
 
@@ -39,7 +38,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

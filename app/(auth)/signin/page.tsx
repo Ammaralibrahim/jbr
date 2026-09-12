@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Lock, Mail, Power } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -15,13 +15,22 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Zaten giriş yapılmışsa dashboard'a yönlendir
+  // Callback URL'yi güvenli hale getir (sadece /dashboard ve alt yolları)
+  const getSafeCallbackUrl = (): string => {
+    const cb = searchParams.get('callbackUrl') || '/dashboard';
+    // Sadece kendi origin'imize ait path'lere izin ver
+    if (!cb.startsWith('/')) return '/dashboard';
+    if (cb.startsWith('//')) return '/dashboard';
+    if (cb.startsWith('/api')) return '/dashboard';
+    return cb;
+  };
+
+  // Zaten giriş yapılmışsa yönlendir
   useEffect(() => {
     if (status === 'authenticated' && session) {
-      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-      window.location.href = callbackUrl;
+      window.location.href = getSafeCallbackUrl();
     }
-  }, [status, session, searchParams]);
+  }, [status, session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,13 +38,10 @@ export default function SignInPage() {
     setError('');
 
     try {
-      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-      
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
-        callbackUrl,
       });
 
       if (result?.error) {
@@ -44,9 +50,7 @@ export default function SignInPage() {
         setIsLoading(false);
       } else if (result?.ok) {
         toast.success('تم تسجيل الدخول بنجاح');
-        
-        // Doğrudan yönlendirme
-        window.location.href = callbackUrl;
+        window.location.href = getSafeCallbackUrl();
       }
     } catch (error) {
       setError('حدث خطأ غير متوقع');
@@ -57,28 +61,26 @@ export default function SignInPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700">
         <div className="text-center space-y-4 mb-8">
-          <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-            <Power className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+            <Power className="h-8 w-8 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">محطة تشرين الكهربائية</h1>
-            <p className="text-muted-foreground mt-2">نظام إدارة وتشغيل المحطة</p>
+            <p className="text-muted-foreground mt-2 text-sm">نظام إدارة وتشغيل المحطة</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm border border-red-200 dark:border-red-800">
               {error}
             </div>
           )}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              البريد الإلكتروني
-            </label>
+            <label htmlFor="email" className="text-sm font-medium">البريد الإلكتروني</label>
             <div className="relative">
               <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -87,17 +89,16 @@ export default function SignInPage() {
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+                className="w-full pr-10 pl-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 text-sm"
                 required
                 dir="ltr"
+                autoComplete="email"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
-              كلمة المرور
-            </label>
+            <label htmlFor="password" className="text-sm font-medium">كلمة المرور</label>
             <div className="relative">
               <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -106,9 +107,10 @@ export default function SignInPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+                className="w-full pr-10 pl-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 text-sm"
                 required
                 dir="ltr"
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -116,7 +118,7 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-l from-blue-600 to-indigo-600 text-white py-2.5 px-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium shadow-lg"
           >
             {isLoading ? (
               <>
@@ -130,5 +132,13 @@ export default function SignInPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="h-10 w-10 animate-spin text-blue-500" /></div>}>
+      <SignInForm />
+    </Suspense>
   );
 }
